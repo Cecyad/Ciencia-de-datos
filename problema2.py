@@ -1,59 +1,34 @@
-import cv2
 import numpy as np
-from matplotlib import pyplot as plt
+import cv2
+import matplotlib.pyplot as plt
+from sklearn.mixture import GaussianMixture
 
-image = cv2.imread("imagen2.jpg")
-gris=cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+img = cv2.imread('imagen.jpeg')
+hist=cv2.calcHist([img],[0],None,[256],[0,256])
+hist[0]=0
 
-#convierte la imagen a un arreglo
-x=np.array(gris)
-#tam de la imagen
-c,d=gris.shape
+data=img.ravel()
+data=data[data != 0]
+data=data[data != 1]
 
+gmm=GaussianMixture(n_components = 6)
+gmm=gmm.fit(X=np.expand_dims(data,1))
 
-#pixel = numero pixel
-#hist=histograma; las veces que se repite cada pixel
-hist, pixel = np.histogram (image.flatten (), 256, [0,256])
+threshold = np.mean(gmm.means_)
+binary_img = img > threshold
 
+gmm_x=np.linspace(0,253,256)
+gmm_y=np.exp(gmm.score_samples(gmm_x.reshape(-1,1)))
 
-#acomulativo de los valores del histograma
-cdf = hist.cumsum ()
+fig, ax = plt.subplots()
+ax.hist(img.ravel(),255,[2,256], normed=True)
+ax.plot(gmm_x, gmm_y, color="crimson", lw=4, label="GMM")
 
-#es una suma acumulativa es decir hay 3 pixeles de 106
-#print(cdf_m[106])
+ax.set_ylabel("Frequency")
+ax.set_xlabel("Pixel Intensity")
 
-
-# valor minimo y maximo de la matriz cdf
-maximo=cdf.max()
-minimo=cdf[cdf>0].min()
-
-
-#Ajustando contraste y brillo
-r=(cdf[x]*255)-minimo
-i= r / (maximo - minimo)
-t = i.astype(np.uint8)
+plt.legend()
+plt.show()
 
 
 
-
-#ajustando contraste y brillo, utilizando cv2
-nueva=cv2.equalizeHist(gris)
-#nu=np.array(nueva)
-
-
-#ajustando contraste y brillo con s=alfa * pixel + beta
-alfa= 1.1
-beta=2
-s=(alfa*x) + beta 
-ajuste = s.astype(np.uint8)
-
-
-
-
-cv2.imshow('original', gris)
-cv2.imshow('funcion', nueva)
-cv2.imshow('ajuste', t)
-cv2.imshow('Ajuste2', ajuste)
-
-cv2.waitKey(0)
-cv2.destroyAllWindows()

@@ -1,56 +1,46 @@
-import cv2
 import numpy as np
-import math
+import cv2
+from matplotlib import pyplot as plt
 
-gris = cv2.imread("imagen1.png")
-image=cv2.cvtColor(gris,cv2.COLOR_BGR2GRAY)
-cv2.imshow('original', image)
-
-# matriz Prewitt
-#fila
-kernel = np.matrix([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]])
-Prewitt = cv2.filter2D(image,-1,kernel)
-#columna
-kernel2 = np.matrix([[-1, -1, -1], [0, 0, 0], [1, 1, 1]])
-Prewitt2=cv2.filter2D(image,-1,kernel2)
-
-Prewitt3=cv2.filter2D(Prewitt,-1,kernel2)
+img = cv2.imread('imagen.jpeg')
+gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+ret, thresh = cv2.threshold(gray,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+cv2.imshow('original',img)
 
 
-#cv2.imshow('Prewitt_fila', Prewitt)
-#cv2.imshow('Prewitt_columna', Prewitt2)
-#cv2.imshow('Prewitt_ambas', Prewitt3)
+# Eliminacion del ruido
+
+kernel = np.ones((3,3),np.uint8)
+opening = cv2.morphologyEx(thresh,cv2.MORPH_OPEN,kernel, iterations = 3)
+
+# Encuentra el area del fondo
+
+sure_bg = cv2.dilate(opening,kernel,iterations=3)
+
+# Encuentra el area del primer
+dist_transform = cv2.distanceTransform(opening,cv2.DIST_L2,5)
+ret, sure_fg = cv2.threshold(dist_transform,0,255,0)
 
 
-#matriz Sobel 
-#fila
-kernels = np.matrix([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
-Sobel = cv2.filter2D(image,-1,kernels)
-#columna
-kernels2 = np.matrix([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
-Sobel2=cv2.filter2D(image,-1,kernels2)
+# Encuentra la region desconocida (bordes)
 
-Sobel3=cv2.filter2D(Sobel,-1,kernels2)
-
-#cv2.imshow('Sobel_fila', Sobel)
-#cv2.imshow('Sobel2_columna', Sobel2)
-#cv2.imshow('Sobel3_ambas', Sobel3)
+sure_fg = np.uint8(sure_fg)
+unknown = cv2.subtract(sure_bg,sure_fg)
 
 
+# Etiquetado
+ret, markers = cv2.connectedComponents(sure_fg)
 
-#matriz Frei-Chen
-#fila
-kernelf = np.matrix([[-1, 0,1], [-math.sqrt(2), 0, math.sqrt(2)], [-1, 0, 1]])
-Frei = cv2.filter2D(image,-1,kernelf)
-#columna
-kernelf2 = np.matrix([[-1, -math.sqrt(2),-1], [0, 0, 0], [1, math.sqrt(2), 1]])
-Frei2=cv2.filter2D(image,-1,kernelf2)
+# Adiciona 1 a todas las etiquetas para asegurra que el fondo sea 1 en lugar de cero
+markers = markers+1
 
-Frei3=cv2.filter2D(Frei,-1,kernelf2)
+# Ahora se marca la region desconocida con ceros
+markers[unknown==255] = 0
 
-cv2.imshow('Frei_fila', Frei)
-cv2.imshow('Frei2_columna', Frei2)
-cv2.imshow('Frei3_ambas', Frei3)
+markers = cv2.watershed(img,markers)
+img[markers == -1] = [255,0,0]
+
+cv2.imshow('watershed',img)
 
 
 cv2.waitKey(0)
